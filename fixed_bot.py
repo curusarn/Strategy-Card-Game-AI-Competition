@@ -83,18 +83,45 @@ while True:
     if all(c.instance_id == -1 for c in cards) and len(cards) > 30:
         # Choose 30 cards for constructed deck
         chosen_cards = []
-        # Prefer creatures with good stats and guards
-        creatures = [c for c in cards if c.type == MINION]
-        # Sort by value (cost-efficiency)
-        creatures.sort(key=lambda x: (x.attack + x.defense) / max(1, x.cost), reverse=True)
 
-        # Take best 30 cards
-        for c in creatures[:30]:
+        # Separate cards by type
+        creatures = [c for c in cards if c.type == MINION]
+        green_items = [c for c in cards if c.type == GREEN]  # Buff friendly
+        red_items = [c for c in cards if c.type == RED]      # Damage enemy
+        blue_items = [c for c in cards if c.type == BLUE]    # Direct effects
+
+        # Sort creatures by value (cost-efficiency)
+        creatures.sort(key=lambda x: (x.attack + x.defense + ('G' in x.abilities) * 2) / max(1, x.cost), reverse=True)
+
+        # Sort items by impact
+        green_items.sort(key=lambda x: (abs(x.attack) + abs(x.defense) + x.card_draw) / max(1, x.cost), reverse=True)
+        red_items.sort(key=lambda x: (abs(x.attack) + abs(x.defense) + ('L' in x.abilities) * 3) / max(1, x.cost), reverse=True)
+        blue_items.sort(key=lambda x: (abs(x.opponent_health_change) + x.card_draw * 2) / max(1, x.cost), reverse=True)
+
+        # Build a balanced deck: ~20 creatures, ~10 spells
+        # Add best creatures (aim for 20)
+        for c in creatures[:20]:
             chosen_cards.append(f"CHOOSE {c.card_name}")
 
+        # Add some removal (red items)
+        for c in red_items[:4]:
+            if len(chosen_cards) < 30:
+                chosen_cards.append(f"CHOOSE {c.card_name}")
+
+        # Add some buffs (green items)
+        for c in green_items[:3]:
+            if len(chosen_cards) < 30:
+                chosen_cards.append(f"CHOOSE {c.card_name}")
+
+        # Add some direct damage/draw (blue items)
+        for c in blue_items[:3]:
+            if len(chosen_cards) < 30:
+                chosen_cards.append(f"CHOOSE {c.card_name}")
+
+        # Fill remaining slots with best remaining cards
         if len(chosen_cards) < 30:
-            # Add any remaining cards if we don't have enough creatures
-            for c in cards:
+            remaining = creatures[20:] + green_items[3:] + red_items[4:] + blue_items[3:]
+            for c in remaining:
                 if len(chosen_cards) >= 30:
                     break
                 if f"CHOOSE {c.card_name}" not in chosen_cards:
